@@ -5,6 +5,7 @@
 
 /*
   Copyright (C) Duncan Greenwood 2017 (duncan_greenwood@hotmail.com)
+  and Ian Blair (c) 2024 ian.charles.blair@gmail.com
 
   This work is licensed under the:
       Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
