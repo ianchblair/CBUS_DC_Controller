@@ -2,7 +2,7 @@ C++ code for a DC model railway controller based on an ESP32 Zoom module. Not fo
 
 Attributions and copyright: (C) Copyright Ian Blair ian.charles.blair@gmail.com Based on work for Arduino by Martin Da Costa and John Purbrick (MERG)
 
-CBUS Interface is incomplete, but is based on the CBUS Micropython library of Duncan Greenwood (MERG) For MERG see http://MERG.org.uk
+CBUS Interface is incomplete, but is based on the C++ library of Duncan Greenwood (MERG) For MERG see http://MERG.org.uk
 
 License: This work is licensed under the: Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. To view a copy of this license, visit: http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
@@ -27,6 +27,6 @@ This software is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE
 Outstanding software issues:-
 
-Pipelining in MicroPython implementation is making 1ms delays take 2 to 3 ms, so the code is running slower than intended. This to be addressed.
+
 
 CBUS messaging and CAN protocol required for module_dc_controller (i.e. CBUS controlled version) has not yet been implemented.
