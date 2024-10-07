@@ -130,8 +130,8 @@ class dc_controller
         // ***
         // Controller part
         // instantiate pins
-        t0dac = DAC(DAC_DAC0);
-        t1dac = DAC(DAC_DAC1);
+        t0dac = DAC(PIN_DAC0);
+        t1dac = DAC(PIN_DAC1);
         bemf0adc = ADC(pindefs.PIN_BEMF0,atten=ADC.ATTN_11DB)
         bemf1adc = ADC(pindefs.PIN_BEMF1,atten=ADC.ATTN_11DB)
         _potadc = ADC(pindefs.PIN_POT,atten=ADC.ATTN_11DB)
