@@ -1,5 +1,5 @@
 // 
-//  dc_controller.cpp
+//  dc_controller.h
 // 
 //  Code for standalone DC controller (ESP32 C++ version)
 // 
@@ -25,9 +25,8 @@ class dc_controller
 {
   int &output_throttle();
   int &return_throttle();
-  int _last_bemf;
-  bool _last_direction;
-  int _phase = 0;
+  int last_bemf;
+  bool last_direction;
   void dc_controller::set_throttle(bool forward_not_backwards);
   void dc_controller::filter_calc(enum mode, int phase, int throttle_level);
   void dc_controller::calculate_throttle(enum mode, int requested_speed, int bemf_speed);
@@ -199,27 +198,27 @@ void dc_controller::direction_check()
 }
 
 //
-// tick() - runs every tick (timer is TBD, but assume 1ms for now) 
+// tick(phase) - runs every tick (timer is TBD, but assume 1ms for now) 
 //   
-void dc_controller::tick()
+void dc_controller::tick(phase)
 {
   // Perform required actions on particular phases
   // Start all cycles with blanking off on both throttles
-  if (_phase == 0)
+  if (phase == 0)
   {
     output_throttle.clear_blanking();
   }  
-  else if (_phase == POT_PHASE)
+  else if (phase == POT_PHASE)
   {
     requested_level = self._potadc.read();
   }
-  else if (_phase == BLANK_PHASE)
+  else if (phase == BLANK_PHASE)
   {
     self.output_throttle.set_blanking();
     blanking_enabled = True;
   }
   // At end of each cycle recalculate throttle values
-  else if (_phase == LAST_PHASE)
+  else if (phase == LAST_PHASE)
   {
     if (blanking_enabled)
     {
@@ -233,9 +232,6 @@ void dc_controller::tick()
   output_sample=self.filter_calc(defs.MODE_TRIANGLE,phase,throttle_value);
   output_throttle.write_output(output_sample);
   //output_throttle.write_output(requested_level
-  _phase++;
-  if (_phase >= MAX_PHASE)
-    _phase = 0;
 }
 
 

@@ -15,6 +15,9 @@ const byte PIN_ADC2_3 = 15; // # Is Physical pin 4
 const byte PIN_BLNK0 = 14;
 const byte PIN_BLNK1 = 12;
 
+const byte PIN_CRX = 18; // CAN/TWAI Rx
+const byte PIN_CTX = 19; // CAN/TWAI Tx
+
 const byte PIN_DIR = 22;
 
 # Mappings
