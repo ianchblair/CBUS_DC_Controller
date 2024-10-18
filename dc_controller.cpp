@@ -37,29 +37,38 @@ void dc_controller::set_throttle(bool forward_not_backwards)
   }
   // delete stored bemf_level
   _last_bemf=0;
+      // Reset blanking
+    output_throttle.clear_blanking();
+    return_throttle.clear_blanking();
 }
-        
+
 // Filter calculates instantaneous output value based on mode, and phase
-void dc_controller::filter_calc(t_wave_mode wave_mode, int phase, int throttle_level)
+int dc_controller::filter_calc(t_wave_mode wave_mode, int phase, int throttle_level)
 {
-  int dc_offset;
+  long dc_offset;
+  long switching_phase;
+  long return_value;
+  long triangle_value;
+  long height;
   // Offset the DC according to the throttle vale
-  dc_offset=int(throttle_level*MAX_OP_LEVEL/MAX_THROTTLE_LEVEL);
-  switching_phase = int(throttle_level*MAX_PHASE/MAX_THROTTLE_LEVEL);
-  if (mode == MODE_DIRECT)
+  dc_offset=throttle_level*MAX_OP_LEVEL/MAX_THROTTLE_LEVEL;
+  switching_phase = throttle_level*MAX_PHASE/MAX_THROTTLE_LEVEL;
+  if (wave_mode == MODE_DIRECT)
   {
     return_value = dc_offset;
   }
-  else if ((mode == MODE_TRIANGLE) or mode == (MODE_TRIANGLE_BEMF))
+  else if ((wave_mode == MODE_TRIANGLE) or (wave_mode == MODE_TRIANGLE_BEMF))
   {
     if (phase < switching_phase)
     {
-      triangle_value = min(int((phase*MAX_OP_LEVEL)/MAX_PHASE),MAX_OP_LEVEL);
+      triangle_value = min(((phase*MAX_OP_LEVEL)/MAX_PHASE),MAX_OP_LEVEL);
     }
     else
     {
-      height = int((switching_phase*MAX_OP_LEVEL)/MAX_PHASE);
-      triangle_value = min(height + int(((switching_phase-phase)*MAX_OP_LEVEL)/MAX_PHASE), MAX_OP_LEVEL);
+      height = ((switching_phase*MAX_OP_LEVEL)/MAX_PHASE);
+      triangle_value = height + (((switching_phase-phase)*MAX_OP_LEVEL)/MAX_PHASE);
+      // Keep value below upper limit
+      if (triangle_value > MAX_OP_LEVEL) triangle_value = MAX_OP_LEVEL;
     }
     if (triangle_value < 0)
     {
@@ -68,7 +77,7 @@ void dc_controller::filter_calc(t_wave_mode wave_mode, int phase, int throttle_l
     // Only use triangle wave for outputs below 50%
     if (dc_offset<MAX_OP_LEVEL/2)
     {    
-      return_value = int(triangle_value*(MAX_OP_LEVEL-(2*dc_offset))/MAX_OP_LEVEL) + dc_offset;
+      return_value = (triangle_value*(MAX_OP_LEVEL-(2*dc_offset))/MAX_OP_LEVEL) + dc_offset;
     }
     else
     {
@@ -84,18 +93,22 @@ void dc_controller::filter_calc(t_wave_mode wave_mode, int phase, int throttle_l
   {
     return_value = MAX_OP_LEVEL;
   }   
-  return(return_value);
+  return(int(return_value));
 }
    
 // This calculates the overall throttle level based on the pot setting bemf measurement and selected mode    
-dc_controller::calculate_throttle(enum mode, int requested_speed, int bemf_speed)
+int dc_controller::calculate_throttle(t_wave_mode wave_mode, int requested_speed, int bemf_speed)
 {
+  long output_level;
+  long error_correction;
+  long error_level;
+  long scaled_error_level;
   // By default or if mode is direct, output = input
   // Input levels arefrom ADCs, 0..4095 range
   output_level=requested_speed;
-  if ((mode == MODE_TRIANGLE) and (bemf_speed < MAX_BEMF_LEVEL))
+  if ((wave_mode == MODE_TRIANGLE) and (bemf_speed < MAX_BEMF_LEVEL))
   {
-    error_correction = ((last_bemf+bemf_speed)*ERROR_SCALE);
+    error_correction = ((_last_bemf+bemf_speed)*ERROR_SCALE);
     error_level = requested_speed-error_correction;
     scaled_error_level = int(error_level*(MAX_THROTTLE_LEVEL-requested_speed)/MAX_THROTTLE_LEVEL);
     if(error_level>=0)
@@ -115,38 +128,38 @@ dc_controller::calculate_throttle(enum mode, int requested_speed, int bemf_speed
     }
   }
   // save bemf measuremant for next cycle
-  last_bemf=bemf_speed;
+  _last_bemf=bemf_speed;
   // return calculated throttle value
   return(output_level);
 }
 
-void dc_controller::dc_controller()
+dc_controller::dc_controller(void)
 {
-  int &output_throttle();
-  int &return_throttle();
   int _last_bemf;
-  bool _last_direction;
+  //bool _last_direction;
+  //bool _direction;
   int _phase = 0;   
   // Assign pins
-  t0dac = PIN_DAC0;
-  t1dac = PIN_DAC1;
-  _potadc = PIN_POT
-  pinMode(PIN_BLNK0, OUTPUT)
-  pinMode(PIN_BLNK1, OUTPUT)
-  pinMode(PIN_DIR, INPUT_PULLUP)
+  //_potadc = PIN_POT;
+  pinMode(PIN_BLNK0, OUTPUT);
+  pinMode(PIN_BLNK1, OUTPUT);
+  pinMode(PIN_DIR, INPUT_PULLUP);
+  pinMode(PIN_BEMF0, INPUT);
+  pinMode(PIN_BEMF1, INPUT);
+  throttle throttle0, throttle1;
         
   // Instantiate throttles, using pin IDs, one for each output
-  throttle0 = throttle.throttle(t0dac, PIN_BEMF0, PIN_BLNK0);
-  throttle1 = throttle.throttle(t1dac, PIN_BEMF1, PIN_NLNK1);              
-  direction = _dirpin.value();
-  set_throttle(direction);
-  last_direction = direction;
-  _timer_synchronisation=asyncio.ThreadSafeFlag()
+  throttle0.initialise(PIN_DAC1, PIN_BEMF0, PIN_BLNK0);
+  throttle1.initialise(PIN_DAC2, PIN_BEMF1, PIN_BLNK1);              
+  _direction = digitalRead(PIN_DIR);
+  set_throttle(_direction);
+  _last_direction = _direction;
+
   output_throttle.clear_blanking();
   return_throttle.clear_blanking();
   // default these to zero until assigned further down...
-  throttle_value=0;
-  requested_level=0;
+  //throttle_value=0;
+  //requested_level=0;
 }
         
 
@@ -155,28 +168,25 @@ void dc_controller::update()
 {      
   //only act on direction switch when requested_level is below minimum threshold
   // Note that there is no debounce.
-  if (requested_level<dMIN_REQUESTED_LEVEL)
+  if (_requested_level < MIN_REQUESTED_LEVEL)
   {
-    direction = _dirpin.value();
+    _direction = digitalRead(PIN_DIR);
   }
   else
   {
-    direction = _last_direction;
+    _direction = _last_direction;
   }
-  blanking_enabled = False;
+  _blanking_enabled = false;
                 
-  if (direction == +last_direction)
+  if (_direction == _last_direction)
   {
     wave();
   }
   else
   {
     // Otherwise reverse direction
-    last_direction = direction;                
-    set_throttle(direction);
-    // Reset blanking
-    output_throttle.clear_blanking();
-    return_throttle.clear_blanking();
+    _last_direction = _direction;                
+    set_throttle(_direction);
   }
 }
 
@@ -187,34 +197,36 @@ void dc_controller::wave()
 {
   // Perform required actions on particular phases
   // Start all cycles with blanking off on both throttles
-  byte output_sample;
+  byte _output_sample;
+  int _throttle_value;
+  int _phase;
   if (_phase == 0)
   {
     output_throttle.clear_blanking();
   }  
   else if (_phase == POT_PHASE)
   {
-    requested_level = _potadc.read();
+    _requested_level = analogRead(PIN_POT);
   }
   else if (_phase == BLANK_PHASE)
   {
-    self.output_throttle.set_blanking();
-    blanking_enabled = True;
+    output_throttle.set_blanking();
+    _blanking_enabled = true;
   }
   // At end of each cycle recalculate throttle values
   else if (_phase == LAST_PHASE)
   {
-    if (blanking_enabled)
+    if (_blanking_enabled)
     {
-      bemf_level= self.output_throttle.read_bemf()                    
-      blanking_enabled = False
+      _bemf_level= output_throttle.read_bemf();                
+      _blanking_enabled = false;
     }
-    throttle_value = self.calculate_throttle(defs.MODE_TRIANGLE,requested_level,bemf_level)
+    _throttle_value = calculate_throttle(MODE_TRIANGLE,_requested_level,_bemf_level);
   }
   // Regardless of above actions set output value
   // Note that output will only be seen when blanking is not enabled.
-  output_sample=self.filter_calc(MODE_TRIANGLE,phase,throttle_value);
-  output_throttle.write_output(output_sample);
+  _output_sample=filter_calc(MODE_TRIANGLE,_phase,_throttle_value);
+  output_throttle.write_output(_output_sample);
   //output_throttle.write_output(requested_level
   _phase++;
   if (_phase >= MAX_PHASE)

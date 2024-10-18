@@ -10,14 +10,18 @@
 #include "pindefs_dc_controller_esp32.h"
 #include "throttle.h"
 
-throttle::throttle(byte throttle_dac_id, byte bemf_adc_pin_id, byte blnk_pin_id)
+throttle::throttle(void)
+{   
+  ;
+}
+
+void throttle::initialise(byte throttle_dac_id, byte bemf_adc_pin_id, byte blnk_pin_id)
 {   
   _throttle_dac_id = throttle_dac_id;
   _bemf_adc_id = bemf_adc_pin_id;
-  _blanking = blnk_pin_id;
-  pinMode(_blanking,OUTPUT);
-}
-            
+  _blnk_pin_id = blnk_pin_id;
+  pinMode(_blnk_pin_id, OUTPUT);
+}            
 // DC Controller throttle routine declarations
 int throttle::adc_read(byte adc_pin_id)
 {
@@ -33,12 +37,12 @@ void throttle::dac_write(int dac_value, byte dac_pin)
         
 void throttle::set_blanking()
 {
-  digitalWrite(_blanking, LOW);
+  digitalWrite(_blnk_pin_id, LOW);
 }
 
 void throttle::clear_blanking()
 {
-  digitalWrite(_blanking, HIGH);
+  digitalWrite(_blnk_pin_id, HIGH);
 }
     
 u16_t throttle::read_bemf()

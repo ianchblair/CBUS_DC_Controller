@@ -32,8 +32,12 @@ const int ERROR_SCALE = 8;
 const int INP_SCALE =8; //Equivalent of 8 used for Ardiono. Divide by 2 for ADC reference 2.45V,
 //and a further 4 for input range (12 bits, not 10)
 
-// Modes
-const int MODE_DIRECT = 0;
-const int MODE_TRIANGLE = 1;
+typedef enum
+{
+  MODE_ZERO,
+  MODE_DIRECT,
+  MODE_TRIANGLE,
+  MODE_TRIANGLE_BEMF,
+} t_wave_mode;
 
 #endif
