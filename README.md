@@ -1,4 +1,4 @@
-C++ code for a DC model railway controller based on an ESP32 Zoom module. Not for public availability yet, as not yet debugged
+C++ code for a DC model railway controller based on an ESP32 Wroom module. Not for public availability yet, as not yet debugged
 
 pot_dc_controller.ino represents an initial iteration that is controlled by a potentiometer and reverse switch.
 
