@@ -1,6 +1,12 @@
 C++ code for a DC model railway controller based on an ESP32 Zoom module. Not for public availability yet, as not yet debugged
 
-Attributions and copyright: (C) Copyright Ian Blair ian.charles.blair@gmail.com Based on work for Arduino by Martin Da Costa and John Purbrick (MERG)
+pot_dc_controller.ino represents an initial iteration that is controlled by a potentiometer and reverse switch.
+
+cbus_dc_controller.ino will implement a cbus controlled dc_controller
+
+Copyright: (C) Copyright Ian Blair ian.charles.blair@gmail.com
+
+Attributions: Based on work for Arduino by Martin Da Costa and John Purbrick (MERG)
 
 CBUS Interface is incomplete, but is based on the C++ library of Duncan Greenwood (MERG) For MERG see http://MERG.org.uk
 
