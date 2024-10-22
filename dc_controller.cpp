@@ -135,10 +135,9 @@ int dc_controller::calculate_throttle(t_wave_mode wave_mode, int requested_speed
 
 dc_controller::dc_controller(void)
 {
-  int _last_bemf;
   //bool _last_direction;
   //bool _direction;
-  int _phase = 0;   
+  _phase = 0;   
   // Assign pins
   //_potadc = PIN_POT;
   pinMode(PIN_BLNK0, OUTPUT);
@@ -165,7 +164,8 @@ dc_controller::dc_controller(void)
 
     
 void dc_controller::update()
-{      
+{
+  int i;
   //only act on direction switch when requested_level is below minimum threshold
   // Note that there is no debounce.
   if (_requested_level < MIN_REQUESTED_LEVEL)
@@ -176,11 +176,14 @@ void dc_controller::update()
   {
     _direction = _last_direction;
   }
-  _blanking_enabled = false;
                 
   if (_direction == _last_direction)
   {
-    wave();
+    for (i=0;i<MAX_PHASE;i++) 
+    {
+      wave(i);
+      delay(1);
+    }
   }
   else
   {
@@ -193,13 +196,13 @@ void dc_controller::update()
 //
 // wave() - runs every tick (assume 1ms for now) 
 //   
-void dc_controller::wave()
+void dc_controller::wave(int _phase)
 {
   // Perform required actions on particular phases
   // Start all cycles with blanking off on both throttles
   byte _output_sample;
   int _throttle_value;
-  int _phase;
+  //int _phase;
   if (_phase == 0)
   {
     output_throttle.clear_blanking();
@@ -207,6 +210,7 @@ void dc_controller::wave()
   else if (_phase == POT_PHASE)
   {
     _requested_level = analogRead(PIN_POT);
+    //_requested_level = 2000;
   }
   else if (_phase == BLANK_PHASE)
   {
@@ -216,11 +220,15 @@ void dc_controller::wave()
   // At end of each cycle recalculate throttle values
   else if (_phase == LAST_PHASE)
   {
+#if 0
     if (_blanking_enabled)
     {
       _bemf_level= output_throttle.read_bemf();                
       _blanking_enabled = false;
     }
+#endif    
+    _bemf_level= output_throttle.read_bemf();                
+    
     _throttle_value = calculate_throttle(MODE_TRIANGLE,_requested_level,_bemf_level);
   }
   // Regardless of above actions set output value
@@ -228,7 +236,7 @@ void dc_controller::wave()
   _output_sample=filter_calc(MODE_TRIANGLE,_phase,_throttle_value);
   output_throttle.write_output(_output_sample);
   //output_throttle.write_output(requested_level
-  _phase++;
-  if (_phase >= MAX_PHASE)
-    _phase = 0;
+  //_phase++;
+  //if (_phase >= MAX_PHASE)
+    //_phase = 0;
 }

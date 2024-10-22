@@ -42,8 +42,10 @@ void loop() {
   /// do CBUS message, switch and LED processing
   //
   // check reversing switch
+  
   Controller.update();
   delay(1);
+  
 }
 
 

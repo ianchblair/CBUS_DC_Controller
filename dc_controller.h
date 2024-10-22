@@ -27,6 +27,7 @@ class dc_controller
   int _requested_level;
   int _bemf_level;
   bool _blanking_enabled;
+  int _phase;
   throttle throttle0;
   throttle throttle1;
 
@@ -38,7 +39,7 @@ public:
   dc_controller(void);
   void setup(void);
   void update(void);
-  void wave(void);
+  void wave(int _phase);
 };       
 
 #endif
