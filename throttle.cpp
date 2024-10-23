@@ -14,13 +14,23 @@ throttle::throttle(void)
 {   
   ;
 }
+// Copy constructor
+throttle::throttle(throttle& that)
+{   
+  _throttle_dac_id = that._throttle_dac_id;
+  _bemf_adc_id = that._bemf_adc_id;
+  _blnk_pin_id = that._blnk_pin_id;
+}
+throttle::~throttle()
+{   
+  ;
+}
 
 void throttle::initialise(byte throttle_dac_id, byte bemf_adc_pin_id, byte blnk_pin_id)
 {   
   _throttle_dac_id = throttle_dac_id;
   _bemf_adc_id = bemf_adc_pin_id;
   _blnk_pin_id = blnk_pin_id;
-  pinMode(_blnk_pin_id, OUTPUT);
 }            
 // DC Controller throttle routine declarations
 int throttle::adc_read(byte adc_pin_id)
@@ -32,17 +42,17 @@ int throttle::adc_read(byte adc_pin_id)
        
 void throttle::dac_write(int dac_value, byte dac_pin)
 {
-  analogWrite(dac_pin, dac_value);
+  dacWrite(dac_pin, dac_value);
 }
         
 void throttle::set_blanking()
 {
-  digitalWrite(_blnk_pin_id, LOW);
+  digitalWrite(PIN_BLNK0, LOW);
 }
 
 void throttle::clear_blanking()
 {
-  digitalWrite(_blnk_pin_id, HIGH);
+  digitalWrite(PIN_BLNK0, HIGH);
 }
     
 u16_t throttle::read_bemf()
@@ -52,7 +62,7 @@ u16_t throttle::read_bemf()
 
 void throttle::write_output(byte _output_level)
 {
-  dac_write(_throttle_dac_id, _output_level);
+  dacWrite(_throttle_dac_id, _output_level);
 }
 
 

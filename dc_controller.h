@@ -18,8 +18,6 @@
               
 class dc_controller 
 {
-  throttle output_throttle;
-  throttle return_throttle;
   int _last_bemf;
   bool forwards_not_backwards;
   bool _direction;
@@ -30,6 +28,8 @@ class dc_controller
   int _phase;
   throttle throttle0;
   throttle throttle1;
+  throttle output_throttle;
+  throttle return_throttle; 
 
   void set_throttle(bool forward_not_backwards);
   int filter_calc(t_wave_mode wave_mode, int phase, int throttle_level);

@@ -27,19 +27,23 @@ void dc_controller::set_throttle(bool forward_not_backwards)
   // Return throttle will remain at zero for return rail. 
   if (forward_not_backwards == true)
   {
-     output_throttle = throttle0;
-     return_throttle = throttle1;
+    output_throttle = throttle0;
+    return_throttle = throttle1;
+    output_throttle.initialise(DAC1, PIN_BEMF0, PIN_BLNK0);
+    return_throttle.initialise(DAC2, PIN_BEMF1, PIN_BLNK1);
   }
   else
   {
     output_throttle = throttle1;
     return_throttle = throttle0;
+    output_throttle.initialise(DAC2, PIN_BEMF1, PIN_BLNK1);
+    return_throttle.initialise(DAC1, PIN_BEMF0, PIN_BLNK0);
   }
   // delete stored bemf_level
   _last_bemf=0;
       // Reset blanking
-    output_throttle.clear_blanking();
-    return_throttle.clear_blanking();
+  output_throttle.clear_blanking();
+  return_throttle.clear_blanking();
 }
 
 // Filter calculates instantaneous output value based on mode, and phase
@@ -134,10 +138,7 @@ int dc_controller::calculate_throttle(t_wave_mode wave_mode, int requested_speed
 }
 
 dc_controller::dc_controller(void)
-{
-  //bool _last_direction;
-  //bool _direction;
-  _phase = 0;   
+{ 
   // Assign pins
   //_potadc = PIN_POT;
   pinMode(PIN_BLNK0, OUTPUT);
@@ -145,17 +146,19 @@ dc_controller::dc_controller(void)
   pinMode(PIN_DIR, INPUT_PULLUP);
   pinMode(PIN_BEMF0, INPUT);
   pinMode(PIN_BEMF1, INPUT);
-  throttle throttle0, throttle1;
+  
+  // Instantiate throttles
+  throttle throttle0 = throttle();
+  throttle throttle1 = throttle();
         
-  // Instantiate throttles, using pin IDs, one for each output
-  throttle0.initialise(PIN_DAC1, PIN_BEMF0, PIN_BLNK0);
-  throttle1.initialise(PIN_DAC2, PIN_BEMF1, PIN_BLNK1);              
+  // Initialise throttles, using pin IDs, one for each output
+  throttle0.initialise(DAC1, PIN_BEMF0, PIN_BLNK0);
+  throttle1.initialise(DAC2, PIN_BEMF1, PIN_BLNK1);
+
   _direction = digitalRead(PIN_DIR);
   set_throttle(_direction);
   _last_direction = _direction;
 
-  output_throttle.clear_blanking();
-  return_throttle.clear_blanking();
   // default these to zero until assigned further down...
   //throttle_value=0;
   //requested_level=0;
@@ -202,7 +205,6 @@ void dc_controller::wave(int _phase)
   // Start all cycles with blanking off on both throttles
   byte _output_sample;
   int _throttle_value;
-  //int _phase;
   if (_phase == 0)
   {
     output_throttle.clear_blanking();
@@ -210,33 +212,25 @@ void dc_controller::wave(int _phase)
   else if (_phase == POT_PHASE)
   {
     _requested_level = analogRead(PIN_POT);
-    //_requested_level = 2000;
   }
   else if (_phase == BLANK_PHASE)
   {
     output_throttle.set_blanking();
-    _blanking_enabled = true;
   }
   // At end of each cycle recalculate throttle values
   else if (_phase == LAST_PHASE)
   {
-#if 0
-    if (_blanking_enabled)
-    {
-      _bemf_level= output_throttle.read_bemf();                
-      _blanking_enabled = false;
-    }
-#endif    
     _bemf_level= output_throttle.read_bemf();                
     
     _throttle_value = calculate_throttle(MODE_TRIANGLE,_requested_level,_bemf_level);
   }
   // Regardless of above actions set output value
-  // Note that output will only be seen when blanking is not enabled.
+  // Note that output will only be seen when blanking is not enabled
   _output_sample=filter_calc(MODE_TRIANGLE,_phase,_throttle_value);
   output_throttle.write_output(_output_sample);
-  //output_throttle.write_output(requested_level
+  //output_throttle.write_output(requested_level;
   //_phase++;
   //if (_phase >= MAX_PHASE)
     //_phase = 0;
 }
+

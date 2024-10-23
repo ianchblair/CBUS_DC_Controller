@@ -18,6 +18,8 @@ class throttle
 public:
  // DC Controller throttle routine declarations
   throttle();
+  throttle(throttle&);
+  ~throttle();
   void initialise(byte throttle_dac_id, byte bemf_adc_pin, byte blnk_pin);
   int adc_read(byte adc_id);
   void dac_write(int dac_value, byte dac_instance);
