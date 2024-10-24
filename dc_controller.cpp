@@ -27,13 +27,17 @@ void dc_controller::set_throttle(bool forward_not_backwards)
   // Return throttle will remain at zero for return rail. 
   if (forward_not_backwards == true)
   {
+    // ideally this should use references, but the compiler  is not accepting these,
+    // A class copy is used instead
     output_throttle = throttle0;
     return_throttle = throttle1;
+    // initialise used in pkace of copy constructor (to be investigated further)
     output_throttle.initialise(DAC1, PIN_BEMF0, PIN_BLNK0);
     return_throttle.initialise(DAC2, PIN_BEMF1, PIN_BLNK1);
   }
   else
   {
+    // See comments above 
     output_throttle = throttle1;
     return_throttle = throttle0;
     output_throttle.initialise(DAC2, PIN_BEMF1, PIN_BLNK1);
