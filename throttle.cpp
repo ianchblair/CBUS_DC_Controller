@@ -14,13 +14,7 @@ throttle::throttle(void)
 {   
   ;
 }
-// Copy constructor
-throttle::throttle(throttle& that)
-{   
-  _throttle_dac_id = that._throttle_dac_id;
-  _bemf_adc_id = that._bemf_adc_id;
-  _blnk_pin_id = that._blnk_pin_id;
-}
+
 throttle::~throttle()
 {   
   ;
@@ -47,12 +41,12 @@ void throttle::dac_write(int dac_value, byte dac_pin)
         
 void throttle::set_blanking()
 {
-  digitalWrite(PIN_BLNK0, LOW);
+  digitalWrite(_blnk_pin_id, LOW);
 }
 
 void throttle::clear_blanking()
 {
-  digitalWrite(PIN_BLNK0, HIGH);
+  digitalWrite(_blnk_pin_id, HIGH);
 }
     
 u16_t throttle::read_bemf()

@@ -44,7 +44,7 @@ void loop() {
   // check reversing switch
   
   Controller.update();
-  delay(1);
+  // Delay is included in above call
   
 }
 

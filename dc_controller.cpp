@@ -144,7 +144,6 @@ int dc_controller::calculate_throttle(t_wave_mode wave_mode, int requested_speed
 dc_controller::dc_controller(void)
 { 
   // Assign pins
-  //_potadc = PIN_POT;
   pinMode(PIN_BLNK0, OUTPUT);
   pinMode(PIN_BLNK1, OUTPUT);
   pinMode(PIN_DIR, INPUT_PULLUP);
@@ -232,7 +231,7 @@ void dc_controller::wave(int _phase)
   // Note that output will only be seen when blanking is not enabled
   _output_sample=filter_calc(MODE_TRIANGLE,_phase,_throttle_value);
   output_throttle.write_output(_output_sample);
-  //output_throttle.write_output(requested_level;
+  return_throttle.write_output(0);
   //_phase++;
   //if (_phase >= MAX_PHASE)
     //_phase = 0;
