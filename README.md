@@ -8,7 +8,7 @@ Copyright: (C) Copyright Ian Blair ian.charles.blair@gmail.com
 
 Attributions: Based on work for Arduino by Martin Da Costa and John Purbrick (MERG)
 
-CBUS Interface is incomplete, but is based on the C++ library of Duncan Greenwood (MERG) For MERG see http://MERG.org.uk
+CBUS Interface is incomplete, but is based on the C++ library of Duncan Greenwood (MERG) For MERG see http://MERG.org.uk, and CANCMDDC2, John Fletcher et al, also MERG.
 
 License: This work is licensed under the: Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. To view a copy of this license, visit: http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
