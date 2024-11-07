@@ -1,6 +1,8 @@
 
 //
-///
+// cbus_dc_controller
+// 
+// ino file for CBUS controlled DC Controller
 //
 
 /*
@@ -39,6 +41,9 @@
 
 */
 
+//#define CBUS 1
+
+#include <arduino.h>
 #include <WiFi.h>
 #include <Streaming.h>
 
@@ -49,6 +54,12 @@
 #include <CBUSconfig.h>             // module configuration
 #include <CBUSParams.h>             // module parameters
 #include <cbusdefs.h>               // MERG CBUS constants
+#include "dc_controller_defs.h"
+#include "pindefs_dc_controller_esp32.h"
+#include "cbus_dc_messages.h"        // CBUS message functions
+#include "dc_controller.h"
+#include "throttle.h"
+//#include "trainController.h"
 
 // CBUS objects
 CBUSConfig module_config;           // configuration object
@@ -57,12 +68,13 @@ CBUSLED ledGrn, ledYlw;             // two LED objects
 CBUSSwitch pb_switch;               // switch object
 
 // module name
-unsigned char mname[7] = { 'E', 'M', 'P', 'T', 'Y', ' ', ' ' };
+unsigned char mname[7] = { 'D', 'C', 'C', 'O', 'N', ' ', ' ' };
 
 // forward function declarations
 void eventhandler(byte index, byte opc);
 void framehandler(CANFrame *msg);
 
+dc_controller Controller;
 //
 /// setup - runs once at power on
 //
@@ -96,11 +108,11 @@ void setup() {
   CBUS.setName(mname);
 
   // initialise CBUS LEDs
-  ledGrn.setPin(4);
-  ledYlw.setPin(5);
+  ledGrn.setPin(PIN_CBUS_LED_GRN);
+  ledYlw.setPin(PIN_CBUS_LED_YEL);
 
   // initialise CBUS switch
-  pb_switch.setPin(6, LOW);
+  pb_switch.setPin(PIN_CBUS_SW, LOW);
 
   // module reset - if switch is depressed at startup and module is in SLiM mode
   pb_switch.run();
@@ -132,6 +144,8 @@ void setup() {
     Serial << "> error starting CBUS" << endl;
   }
 
+  Controller = dc_controller();  // Instantiate and initialise dc_controller
+  
   // end of setup
   Serial << "> ready" << endl;
 }
@@ -147,6 +161,15 @@ void loop() {
   //
 
   CBUS.process();
+
+  //
+  /// do CBUS message, switch and LED processing
+  //
+  // check reversing switch
+  
+  Controller.update();
+  // Delay is included in above call
+
 }
 
 //
@@ -154,7 +177,7 @@ void loop() {
 /// called from the CBUS library when a learned event is received
 /// it receives the event table index and the CAN frame
 //
-
+#if 0
 void eventhandler(byte index, CANFrame *msg) {
 
   // as an example, display the opcode of this event
@@ -162,13 +185,16 @@ void eventhandler(byte index, CANFrame *msg) {
   Serial << "> event handler: index = " << index << ", opcode = 0x" << _HEX(msg->data[0]) << endl;
   return;
 }
+#endif
+
 
 //
-/// user-defined frame processing function
+/// user-defined CBUS frame processing function
 /// called from the CBUS library when selected CAN frames received
 /// it receives a pointer to the received CAN frame
 //
-
+#define CBUS 1 Used to enable link to CBUS
+#if 0
 void framehandler(CANFrame *msg) {
 
   // as an example, format and display the received frame
@@ -185,3 +211,4 @@ void framehandler(CANFrame *msg) {
   Serial << fbuff << endl;
   return;
 }
+#endif
