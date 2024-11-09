@@ -16,6 +16,8 @@
 #include "dc_controller.h"
 #include "throttle.h"
 
+void cbus_serial_setup(CBUSConfig params);
+
 void processSerialInput(void);
 
 #endif

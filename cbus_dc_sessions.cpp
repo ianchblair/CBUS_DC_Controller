@@ -26,154 +26,92 @@
 
 #define startAddress 1000     // multiplier for DCC address offset from device address. 
 // Device 0 uses 1000, device 1 uses 2000,...
-byte deviceAddress = 0;       // assume only unit on CAN bus (for now)
 
-// NOTE: controllers' index (not the DCC address) is used by the keypad handler. 
-// Making the last digit of the DCC address = the index aids clarity for user.
-struct {
-  int             session;
-  unsigned int    DCCAddress;
-  byte            longAddress;
-  byte            timeout;
-  boolean         shared;       // this loco shared by > 1 CAB (this includes the keypad)
-  struct {
-      byte      address;      // DCC short address of consist. 0 = unused.
-      byte      session;      // Session id of consist. 0 = unused.
-      boolean   reverse;
-  } consist;
-  trainControllerClass trainController;
-} controllers[NUM_CONTROLLERS] = {
-#if LINKSPRITE || TOWNSEND
-                // Values taken from the motor shield example code
-                {SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 1, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(pinI1, pinI2, pwmpins[0])}
-               ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 2, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(pinI3, pinI4, pwmpins[1])}
-#else
-                  {SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 1, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(22, 23, pwmpins[0])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 2, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(24, 25, pwmpins[1])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 3, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(26, 27, pwmpins[2])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 4, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(28, 29, pwmpins[3])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 5, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(30, 31, pwmpins[4])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 6, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(32, 33, pwmpins[5])}
-                 //,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 7, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(14, 15, pwmpins[6])}
-                 //,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 8, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(16, 17, pwmpins[7])}
-#endif
-                                  };
+bool cancmd_present;
 
-#if ENCODER
-#if TOWNSEND
-// Townsend uses Martin's encoder.
-#include "encoderControllerMD.h"
-#else
-//#define ENCODER_USE_INTERRUPTS
-#define ENCODER_DO_NOT_USE_INTERRUPTS
-#include "encoderController.h"
-#endif
-struct {
-  encoderControllerClass encoderController;
-} encoders[NUM_CONTROLLERS] = {
-#if TOWNSEND // Only 2 controllers in this case. Pins for Martin's encoder in the header file.
-                {encoderControllerClass(encoder1, spinwheelClickPin1,encoder_name1)},
-                {encoderControllerClass(encoder2, spinwheelClickPin2,encoder_name2)}
-#else
-#if LINKSPRITE // Only 2 controllers in this case.
-                {encoderControllerClass(A8,  A0, 38)},
-                {encoderControllerClass(A9,  A1, 40)}
-#else
-                {encoderControllerClass(A8,  A0, 38)},
-                {encoderControllerClass(A9,  A1, 40)},
-                {encoderControllerClass(A10, A2, 42)},
-                {encoderControllerClass(A11, A3, 44)},
-                {encoderControllerClass(A12, A4, 46)},
-                {encoderControllerClass(A13, A5, 48)},
-                //{Encoder(A14, A6, 9), 0, 0, 0},
-                //{Encoder(A15, A7, 36), 0, 0, 0}
-#endif
-#endif
-};
-#endif
-
-
-sessions_reset()
+void sessions_reset(void)
 {
-        // System Reset (Sent by CANCMD on power up)
-          cancmd_present = TRUE; // message came from CANCMD, so must be present
-          for (controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
-          {
-            // release all active controllers
-            if (controllers[controllerIndex].session > SF_INACTIVE)
-            {
-              controllers[controllerIndex].trainController.emergencyStop(); // Emergency Stop
-              controllers[controllerIndex].session = SF_INACTIVE;
-              // update the speed display.
-              displaySpeed(controllerIndex);
-            }
-            // release all consists
-            controllers[controllerIndex].consist = { 0, false, false };
-          }
-          break;
+  // System Reset (Sent by CANCMD on power up)
+  cancmd_present = true; // message came from CANCMD, so must be present
+  for (int controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
+  {
+    // release all active controllers
+    if (controllers[controllerIndex].session > SF_INACTIVE)
+    {
+      controllers[controllerIndex].trainController.emergencyStop(); // Emergency Stop
+      controllers[controllerIndex].session = SF_INACTIVE;
+      // update the speed display.
+      //ib displaySpeed(controllerIndex);
+    }
+    // release all consists
+    controllers[controllerIndex].consist = { 0, false, false };
+  }
 }
 
 // ploc function
-sessions_ploc()
+void sessions_ploc(CANFrame *msg, long unsigned int dcc_address, int long_address)
 {
-           // only interested in the addresses of our analogue outputs
-           for (controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
-           {
-             if (controllers[controllerIndex].DCCAddress == dcc_address  && controllers[controllerIndex].longAddress == long_address)
-             {
-               int requestedSpeed = msg->data[4] & 0x7f;
-               controllers[controllerIndex].session = msg->data[1];
-               if (requestedSpeed == 1)
-               {
-                // emergency stop
-                controllers[controllerIndex].trainController.emergencyStop();
-               }
-               else
-               {
-                 controllers[controllerIndex].trainController.setSpeedAndDirection((msg->data[4] & 0x80) >> 3, msg->data[4] & 0x7f);
-               }
-             }
-           }
+  // only interested in the addresses of our analogue outputs
+  for (int controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
+  {
+    if (controllers[controllerIndex].DCCAddress == dcc_address  && controllers[controllerIndex].longAddress == long_address)
+    {
+      int requestedSpeed = msg->data[4] & 0x7f;
+      controllers[controllerIndex].session = msg->data[1];
+      if (requestedSpeed == 1)
+      {
+        // emergency stop
+        controllers[controllerIndex].trainController.emergencyStop();
+      }
+      else
+      {
+        controllers[controllerIndex].trainController.setSpeedAndDirection((msg->data[4] & 0x80) >> 3, msg->data[4] & 0x7f);
+      }
+    }
+  }
 }
 
-
-restp 
-        // RESTP function
-sessions_restp()
+// RESTP function
+void sessions_restp(void)
 {
-          for (controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
-          {
-            // stop all active controllers
-            if (controllers[controllerIndex].session != SF_INACTIVE)
-            {
+  for (int controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
+  {
+    // stop all active controllers
+    if (controllers[controllerIndex].session != SF_INACTIVE)
+    {
 #if DEBUG
-              Serial << F("Controller ") << controllerIndex << F(" active")<< endl;
+      Serial << F("Controller ") << controllerIndex << F(" active")<< endl;
 #endif
-              controllers[controllerIndex].trainController.emergencyStop ();
-              // update the speed display.
-              displaySpeed(controllerIndex);
-            } else {
+      controllers[controllerIndex].trainController.emergencyStop ();
+      // update the speed display.
+      // IB displaySpeed(controllerIndex);
+    }
+    else
+    {
 #if DEBUG
-              Serial << F("Controller ") << controllerIndex << F(" inactive")<< endl;
+      Serial << F("Controller ") << controllerIndex << F(" inactive")<< endl;
 #endif
-            }
-        }
+    }
+  }
 }
 
 //IB session timeout funtion
 // session timeout function  
-    // increment timeout counters every second
+// increment timeout counters every second
+
+void sessions_increment(void)
+{
   for (byte controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
   {
     if (controllers[controllerIndex].session != SF_INACTIVE)
     {
-    ++controllers[controllerIndex].timeout; // increment timeout counter by 1
+      ++controllers[controllerIndex].timeout; // increment timeout counter by 1
     }
   }
-
+}
 
 // New routine for update processing which can be called as needed.
-void session_pdateProcessing()
+void sessions_updateProcessing(bool updateNow)
 {
    byte controllerIndex;
    // No CBus message received this time round the loop, so check the sessions for timeout
@@ -197,7 +135,7 @@ void session_pdateProcessing()
       {
         controllers[controllerIndex].trainController.matchToTargets ();
         // update the speed display.
-        displaySpeed(controllerIndex);
+        // IB displaySpeed(controllerIndex);
       }
     }
     updateNow = false;
@@ -253,19 +191,18 @@ releaseLoco(byte session)
   Serial.println(" Released.");
 #endif
     // update the speed display.
-    displaySpeed(controllerIndex);
+    // IB displaySpeed(controllerIndex);
   }
 }
 
 /*
  * A QLOC command for the given session from a CAB
  */
-void
-queryLoco(byte session)
+void queryLoco(byte session)
 {  
   int controllerIndex = getSessionIndex(session);
   // only respond if working standalone
-  if (cancmd_present == FALSE)
+  if (cancmd_present == false)
   {
 #if DEBUG
     Serial.print("Query Loco Session ");
@@ -310,7 +247,7 @@ locoSession(byte session, unsigned int address, byte long_address, byte directio
     controllers[controllerIndex].session = session;
     controllers[controllerIndex].trainController.setSpeedAndDirection(direction_, speed_);
     // update the speed display.
-    displaySpeed(controllerIndex);
+    // IB displaySpeed(controllerIndex);
   }
 }
 
@@ -339,7 +276,7 @@ locoRequest(unsigned int address, byte long_address, byte flags)
   Serial.println("locoRequest");
 #endif
   // only respond if working standalone
-  if (cancmd_present == FALSE)
+  if (cancmd_present == false)
   {
 #if DEBUG
     Serial.println("Standalone");
@@ -404,20 +341,22 @@ locoRequest(unsigned int address, byte long_address, byte flags)
 */
 void consistRequest(unsigned int address)
 {
+  byte index;
 #if DEBUG
   Serial.println(F("ConsistRequest"));
 #endif
   // only respond if working standalone
-  if (cancmd_present == FALSE)
+  if (cancmd_present == false)
   {
 #if DEBUG
     Serial.println(F("Standalone"));
-    byte index;
+
 #endif
     if ((address > 0) && address < 128)
     {
       //This is a DCC Address associated with our consists
       boolean found = false;
+      byte index;
 
       for (index = 0; index < NUM_CONTROLLERS; index++)
       {
@@ -482,7 +421,7 @@ void sendPLOC(byte session)
   unsigned char buf[8];
   int controllerIndex = getSessionIndex(session);
   // only send this response if working standalone
-  if (cancmd_present == FALSE)
+  if (cancmd_present == false)
   {
    #if DEBUG
      Serial.print("Send PLOC ");
@@ -517,7 +456,7 @@ void sendPLOCConsist(byte address)
 {
   unsigned char buf[8];
   // only send this response if working standalone
-  if (cancmd_present == FALSE)
+  if (cancmd_present == false)
   {
     // only send this response if 1st device on bus - we don't want up to 8 identical messages sent
     if (deviceAddress == 0)
@@ -609,7 +548,7 @@ void setSpeedAndDirection(byte controllerIndex, byte requestedSpeed, byte revers
     controllers[controllerIndex].trainController.setSpeedAndDirection(((requestedSpeed & 0x80) ^ reverse) >> 7, requestedSpeed & 0x7f);
   }
   // update the speed display.
-  displaySpeed(controllerIndex);
+  // IB displaySpeed(controllerIndex);
 }
 #if SET_INERTIA_RATE
 void setInertiaRate(byte session, byte rate)

@@ -26,6 +26,37 @@
 #define INERTIA        3200       // Inertia counter value. Set High
 #endif
 
+/**
+ * Definitions of the flags bits
+ */
+#define SF_FORWARDS  0x01      // Train is running forwards
+#define SF_REVERSE   0x00      // Train is running in reverse
+#define SF_LONG      0xC0      // long DCC address. top 2 bits of high byte. both 1 for long, both 0 for short.
+#define SF_INACTIVE  -1        // CAB Session is not active
+#define SF_UNHANDLED -1        // DCC Address is not associated with an analogue controller (duplicate)
+#define SF_LOCAL     -2        // DCC Address is operated only by the keypad, and not part of a CAB Session
+
+#define TONE 1000    // Set the tone for the buzzer
+
+#define MAXTIMEOUT 30      // Max number of seconds before session is timed out
+                           // if no stayalive received for the session
+
+enum class ErrorState : byte {
+  blankError,
+  noError,
+  emergencyStop,
+  CANbusError,
+  locoStackFull,
+  locoTaken,
+  noSession,
+  consistEmpty,
+  locoNotFound,
+  invalidRequest,
+  sessionCancelled,
+  motorOverload,
+  invalidError
+};
+
 #define startAddress 1000     // multiplier for DCC address offset from device address. 
 // Device 0 uses 1000, device 1 uses 2000,...
 byte deviceAddress = 0;       // assume only unit on CAN bus (for now)
@@ -101,7 +132,7 @@ struct {
 //
 void sessions_reset(void);
 
-void sessions_ploc(void);
+void sessions_ploc(CANFrame *msg, long unsigned int dcc_address, int long_address);
 
 void sessions_restp(void);
 
@@ -109,8 +140,7 @@ void sessions_restp(void);
 void sessions_increment(void);
 
 // New routine for update processing which can be called as needed.
-void sessions_updateProcessing(void);
-
+void sessions_updateProcessing(bool updateNow);
 
 
 // Functions for individual sessions...
@@ -136,14 +166,7 @@ void locoSession(byte session, unsigned int address, byte long_address, byte dir
 /*
  * Keep alive received, so reset the timeout counter
  */
-void keepaliveSession(byte session)
-{
-  int controllerIndex = getSessionIndex(session);
-  if (controllerIndex >= 0)
-  {
-    controllers[controllerIndex].timeout = 0;
-  }
-}
+void keepaliveSession(byte session);
 
 /*
  * A throttle has requested access to a particular loco address

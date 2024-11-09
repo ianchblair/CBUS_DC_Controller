@@ -1,5 +1,15 @@
 #include "cbus_dc_serial_interpreter.h"
 #include "arduino.h"
+#include "cbus_dc_messages.h"
+
+CBUSConfig module_config;
+
+void cbus_serial_setup(CBUSConfig params)
+{
+  module_config = params;
+}
+
+
 
 void processSerialInput(void) {
 
@@ -19,7 +29,7 @@ void processSerialInput(void) {
 
         // node identity
         Serial << F("> CBUS node configuration") << endl;
-        Serial << F("> mode = ") << (config.FLiM ? "FLiM" : "SLiM") << F(", CANID = ") << config.CANID << F(", node number = ") << config.nodeNum << endl;
+        Serial << F("> mode = ") << (module_config.FLiM ? "FLiM" : "SLiM") << F(", CANID = ") << module_config.CANID << F(", node number = ") << module_config.nodeNum << endl;
         Serial << endl;
         break;
 
@@ -28,21 +38,21 @@ void processSerialInput(void) {
         // EEPROM learned event data table
         Serial << F("> stored events ") << endl;
 
-        sprintf(msgstr, "  max events = %d, EVs per event = %d, bytes per event = %d", config.EE_MAX_EVENTS, config.EE_NUM_EVS, config.EE_BYTES_PER_EVENT);
+        sprintf(msgstr, "  max events = %d, EVs per event = %d, bytes per event = %d", module_config.EE_MAX_EVENTS, module_config.EE_NUM_EVS, module_config.EE_BYTES_PER_EVENT);
         Serial << msgstr << endl;
 
-        for (byte j = 0; j < config.EE_MAX_EVENTS; j++) {
-          if (config.getEvTableEntry(j) != 0) {
+        for (byte j = 0; j < module_config.EE_MAX_EVENTS; j++) {
+          if (module_config.getEvTableEntry(j) != 0) {
             ++uev;
           }
         }
 
-        Serial << F("  stored events = ") << uev << F(", free = ") << (config.EE_MAX_EVENTS - uev) << endl;
-        Serial << F("  using ") << (uev * config.EE_BYTES_PER_EVENT) << F(" of ") << (config.EE_MAX_EVENTS * config.EE_BYTES_PER_EVENT) << F(" bytes") << endl << endl;
+        Serial << F("  stored events = ") << uev << F(", free = ") << (module_config.EE_MAX_EVENTS - uev) << endl;
+        Serial << F("  using ") << (uev * module_config.EE_BYTES_PER_EVENT) << F(" of ") << (module_config.EE_MAX_EVENTS * module_config.EE_BYTES_PER_EVENT) << F(" bytes") << endl << endl;
 
         Serial << F("  Ev#  |  NNhi |  NNlo |  ENhi |  ENlo | ");
 
-        for (byte j = 0; j < (config.EE_NUM_EVS); j++) {
+        for (byte j = 0; j < (module_config.EE_NUM_EVS); j++) {
           sprintf(dstr, "EV%03d | ", j + 1);
           Serial << dstr;
         }
@@ -52,19 +62,19 @@ void processSerialInput(void) {
         Serial << F(" --------------------------------------------------------------") << endl;
 
         // for each event data line
-        for (byte j = 0; j < config.EE_MAX_EVENTS; j++) {
+        for (byte j = 0; j < module_config.EE_MAX_EVENTS; j++) {
 
-          if (config.getEvTableEntry(j) != 0) {
+          if (module_config.getEvTableEntry(j) != 0) {
             sprintf(dstr, "  %03d  | ", j);
             Serial << dstr;
 
             // for each data byte of this event
-            for (byte e = 0; e < (config.EE_NUM_EVS + 4); e++) {
-              sprintf(dstr, " 0x%02hx | ", config.readEEPROM(config.EE_EVENTS_START + (j * config.EE_BYTES_PER_EVENT) + e));
+            for (byte e = 0; e < (module_config.EE_NUM_EVS + 4); e++) {
+              sprintf(dstr, " 0x%02hx | ", module_config.readEEPROM(module_config.EE_EVENTS_START + (j * module_config.EE_BYTES_PER_EVENT) + e));
               Serial << dstr;
             }
 
-            sprintf(dstr, "%4d |", config.getEvTableEntry(j));
+            sprintf(dstr, "%4d |", module_config.getEvTableEntry(j));
             Serial << dstr << endl;
           }
         }
@@ -81,8 +91,8 @@ void processSerialInput(void) {
         Serial << F("   NV   Val") << endl;
         Serial << F("  --------------------") << endl;
 
-        for (byte j = 1; j <= config.EE_NUM_NVS; j++) {
-          sprintf(msgstr, " - %02d : %3hd | 0x%02hx", j, config.readNV(j), config.readNV(j));
+        for (byte j = 1; j <= module_config.EE_NUM_NVS; j++) {
+          sprintf(msgstr, " - %02d : %3hd | 0x%02hx", j, module_config.readNV(j), module_config.readNV(j));
           Serial << msgstr << endl;
         }
 
@@ -93,32 +103,32 @@ void processSerialInput(void) {
       // CAN bus status
       case 'c':
 
-        CBUS.printStatus();
+        //CBUS.printStatus();
         break;
 
       case 'h':
         // event hash table
-        config.printEvHashTable(false);
+        module_config.printEvHashTable(false);
         break;
 
       case 'y':
         // reset CAN bus and CBUS message processing
-        CBUS.reset();
+        //CBUS.reset();
         break;
 
       case '*':
         // reboot
-        config.reboot();
+        module_config.reboot();
         break;
 
       case 'm':
         // free memory
-        Serial << F("> free SRAM = ") << config.freeSRAM() << F(" bytes") << endl;
+        Serial << F("> free SRAM = ") << module_config.freeSRAM() << F(" bytes") << endl;
         break;
 
       case 'r':
         // renegotiate
-        CBUS.renegotiate();
+        //CBUS.renegotiate();
         break;
 
       case 'z':
@@ -141,7 +151,7 @@ void processSerialInput(void) {
           else {
             //Request confirmed within timeout
             Serial << F(">RESETTING AND WIPING EEPROM") << endl;
-            config.resetModule();
+            module_config.resetModule();
             ResetRq = false;
           }
         }
