@@ -54,14 +54,18 @@
 #include <CBUSconfig.h>             // module configuration
 #include <CBUSParams.h>             // module parameters
 #include <cbusdefs.h>               // MERG CBUS constants
+#include "cbus_module_defs.h"
 #include "dc_controller_defs.h"
 #include "pindefs_dc_controller_esp32.h"
+#include "cbus_dc_sessions.h"        // CBUS session functions
 #include "cbus_dc_messages.h"        // CBUS message functions
+#include "cbus_dc_session_messages.h"
 #include "dc_controller.h"
 #include "throttle.h"
-//#include "trainController.h"
+#include "trainController.h"
 
 // CBUS objects
+#define CBUSDAC 1
 CBUSConfig module_config;           // configuration object
 CBUSESP32 CBUS(&module_config);     // CBUS object
 CBUSLED ledGrn, ledYlw;             // two LED objects
@@ -74,7 +78,11 @@ unsigned char mname[7] = { 'D', 'C', 'C', 'O', 'N', ' ', ' ' };
 void eventhandler(byte index, byte opc);
 void framehandler(CANFrame *msg);
 
+// Object definitions
 dc_controller Controller;
+cbus_dc_messages Messenger;
+cbus_dc_sessions SessionMngr;
+cbus_dc_session_messages SessionMessageMngr;
 //
 /// setup - runs once at power on
 //
@@ -148,6 +156,14 @@ void setup() {
   
   // end of setup
   Serial << "> ready" << endl;
+
+  Messenger = cbus_dc_messages();  // Instantiate and message handler
+  //SessionMngr = cbus_dc_sessions();  // Instantiate and initialise session manager
+  //Messenger.setup(module_config);
+  //SessionMngr.setup();
+  SessionMessageMngr = cbus_dc_session_messages();
+  SessionMessageMngr.message_setup(module_config);
+  //Messenger.setupSessions(SessionMgr);
 }
 
 //
@@ -177,25 +193,25 @@ void loop() {
 /// called from the CBUS library when a learned event is received
 /// it receives the event table index and the CAN frame
 //
-#if 0
+
 void eventhandler(byte index, CANFrame *msg) {
 
-  // as an example, display the opcode of this event
+  Messenger.eventhandler(index, msg);
+ 
+  // For debug, display the opcode of this event
 
   Serial << "> event handler: index = " << index << ", opcode = 0x" << _HEX(msg->data[0]) << endl;
-  return;
 }
-#endif
-
 
 //
 /// user-defined CBUS frame processing function
 /// called from the CBUS library when selected CAN frames received
 /// it receives a pointer to the received CAN frame
 //
-#define CBUS 1 Used to enable link to CBUS
-#if 0
+
+
 void framehandler(CANFrame *msg) {
+  Messenger.framehandler(msg);
 
   // as an example, format and display the received frame
   char fbuff[40], dbuff[8];
@@ -211,4 +227,3 @@ void framehandler(CANFrame *msg) {
   Serial << fbuff << endl;
   return;
 }
-#endif

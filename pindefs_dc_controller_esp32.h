@@ -11,6 +11,10 @@
 // const byte PIN_DAC0 = 25; // # GPIO25 Is Physical pin 9
 // const byte PIN_DAC1 = 26; // # GPIO26 Is Physical pin 10
 
+const byte PIN_CBUS_LED_GRN = 17;
+const byte PIN_CBUS_LED_YEL = 16;
+const byte PIN_CBUS_SW = 4;
+
 const byte PIN_BEMF0 = 33; // ADC 1_5 is Physical pin 8
 const byte PIN_BEMF1 = 27; // ABC 2_7 is Physical pin 11
 const byte PIN_POT = 15; // # ADC 2_3 is Physical pin 4

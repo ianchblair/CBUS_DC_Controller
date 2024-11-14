@@ -15,5 +15,6 @@ const byte VER_MAJ = 4;                  // code major version
 const char VER_MIN = 'z';                // code minor version
 const byte VER_BETA = 14;                 // code beta sub-version
 const byte MODULE_ID = 99;               // CBUS module type
+const byte NUM_CONTROLLERS =1;
 
 #endif

@@ -20,4 +20,6 @@ void cbus_serial_setup(CBUSConfig params);
 
 void processSerialInput(void);
 
+void printConfig(void);
+
 #endif

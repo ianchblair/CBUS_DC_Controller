@@ -19,38 +19,46 @@
 #include "dc_controller.h"
 #include "throttle.h"
 
-CBUSConfig module_config;
-CBUSESP32 CBUS; // CBUS Object
+CBUSConfig _mod_config;
+CBUSESP32 _cbus; // CBUS Object
+cbus_dc_sessions _sesssions;
 
-bool cancmd_present = false;
-volatile byte timer_counter = 0;
-volatile byte flash_counter = 0;
-volatile byte beep_counter = 0;
-volatile byte update_counter = 0;
-volatile boolean updateNow = false;
-volatile boolean shutdownFlag = false;
+//bool cancmd_present = false;
+//volatile byte timer_counter = 0;
+//volatile byte flash_counter = 0;
+//volatile byte beep_counter = 0;
+//volatile byte update_counter = 0;
+//volatile boolean updateNow = false;
+//volatile boolean shutdownFlag = false;
 
-void cbus_message_setup(CBUSConfig params)
+cbus_dc_messages::cbus_dc_messages()
 {
-  module_config = params;
+  ;
 }
+
+void cbus_dc_messages::messages_setup(CBUSConfig params, CBUSESP32 cbus_params)
+{
+  _mod_config = params;
+  _cbus = cbus_params; 
+}
+
 
 /// Send an event routine built to start sending events based on input from a CANCAB
 bool sendEvent(byte opCode,unsigned int eventNo)
 {
     CANFrame msg;
-    msg.id = module_config.CANID;
+    msg.id = _mod_config.CANID;
     msg.len = 5;
     msg.data[0] = opCode;
-    msg.data[1] = highByte(module_config.nodeNum);
-    msg.data[2] = lowByte(module_config.nodeNum);
+    msg.data[1] = highByte(_mod_config.nodeNum);
+    msg.data[2] = lowByte(_mod_config.nodeNum);
     msg.data[3] = highByte(eventNo); // event number (EN) could be > 255
-    msg.data[4] = lowByte(eventNo); 
+    msg.data[4] = lowByte(eventNo); //CBUSConfig
     msg.ext = false;
     msg.rtr = false;
 
     //bool res = CBUS.sendMessage(&msg);
-    bool res = CBUS.sendMessage(&msg);
+    bool res = _cbus.sendMessage(&msg);
 #if DEBUG
     if (res) {
       Serial << F("> sent CBUS event with opCode [ 0x") << _HEX(opCode) << F(" ] and event No ") << eventNo << endl;
@@ -67,18 +75,18 @@ bool sendEvent(byte opCode,unsigned int eventNo)
 bool sendEvent1(byte opCode, unsigned int eventNo, byte item)
 {
     CANFrame msg;
-    msg.id = module_config.CANID;
+    msg.id = _mod_config.CANID;
     msg.len = 6;
     msg.data[0] = opCode;
-    msg.data[1] = highByte(module_config.nodeNum);
-    msg.data[2] = lowByte(module_config.nodeNum);
+    msg.data[1] = highByte(_mod_config.nodeNum);
+    msg.data[2] = lowByte(_mod_config.nodeNum);
     msg.data[3] = highByte(eventNo); // event number (EN) could be > 255
     msg.data[4] = lowByte(eventNo); 
     msg.data[5] = item;    // The extra byte
     msg.ext = false;
     msg.rtr = false;
 
-    bool res = CBUS.sendMessage(&msg);
+    bool res = _cbus.sendMessage(&msg);
 #if DEBUG
     if (res) {
       Serial << F("> sent CBUS event with opCode [ 0x") << _HEX(opCode) << F(" ] and event No ") << eventNo << endl;
@@ -99,11 +107,11 @@ bool sendEventN(byte opCode,unsigned int eventNo, byte n, const byte* buf)
      return sendEvent(opCode, eventNo);
   } else {
     CANFrame msg;
-    msg.id = module_config.CANID;
+    msg.id = _mod_config.CANID;
     msg.len = 5+n;
     msg.data[0] = opCode;
-    msg.data[1] = highByte(module_config.nodeNum);
-    msg.data[2] = lowByte(module_config.nodeNum);
+    msg.data[1] = highByte(_mod_config.nodeNum);
+    msg.data[2] = lowByte(_mod_config.nodeNum);
     msg.data[3] = highByte(eventNo); // event number (EN) could be > 255
     msg.data[4] = lowByte(eventNo); 
     for(byte i = 0;  i< n; i++)
@@ -113,7 +121,7 @@ bool sendEventN(byte opCode,unsigned int eventNo, byte n, const byte* buf)
     msg.ext = false;
     msg.rtr = false;
 
-    bool res = CBUS.sendMessage(&msg);
+    bool res = _cbus.sendMessage(&msg);
 #if DEBUG
     if (res) {
       Serial << F("> sent CBUS event with opCode [ 0x") << _HEX(opCode) << F(" ] and event No ") << eventNo << endl;
@@ -131,10 +139,10 @@ bool sendEventN(byte opCode,unsigned int eventNo, byte n, const byte* buf)
 
 /// This replaces the CAN0.SendMsgBuff usage.
 /// It uses the CANID of the current configuration.
-bool sendMessage(byte len, const byte *buf)
+bool cbus_dc_messages::sendMessage(byte len, const byte *buf)
 {
     CANFrame msg;
-    msg.id = module_config.CANID;
+    msg.id = _mod_config.CANID;
     msg.len = len;
     for(byte i = 0;  i< len; i++)
     {
@@ -143,7 +151,7 @@ bool sendMessage(byte len, const byte *buf)
     msg.ext = false;
     msg.rtr = false;
   
-    bool res = CBUS.sendMessage(&msg);
+    bool res = _cbus.sendMessage(&msg);
 #if DEBUG
     if (res) {
       Serial << F("> sent CBUS message with code [ 0x") << _HEX(buf[0]) << F(" ] and size ") << len << endl;
@@ -168,7 +176,7 @@ bool sendMessage(byte len, const byte *buf)
 /// it receives the event table index and the CAN frame
 //
 
-void eventhandler(byte index, CANFrame *msg) 
+void cbus_dc_messages::eventhandler(byte index, CANFrame *msg) 
 {
 
   // as an example, control an LED if the first EV equals 1
@@ -187,7 +195,7 @@ void eventhandler(byte index, CANFrame *msg)
     // For now get the first event value
     byte ev = 1;
     //byte evval = config.getEventEVval(index, ev - 1); I think the library has changed.
-    byte evval = module_config.getEventEVval(index, ev);
+    byte evval = _mod_config.getEventEVval(index, ev);
     Serial << F("> NN = ") << node_number << F(", EN = ") << event_number << endl;
     Serial << F("> op_code = ") << op_code << endl;
     Serial << F("> EV1 = ") << evval << endl;
@@ -277,7 +285,7 @@ void eventhandler(byte index, CANFrame *msg)
 ///
 /// Handler to receive a long message 
 ///
-void longmessagehandler(byte *fragment, unsigned int fragment_len, byte stream_id, byte status){
+void cbus_dc_messages::longmessagehandler(byte *fragment, unsigned int fragment_len, byte stream_id, byte status){
 // I need an example for what goes in here.
      fragment[fragment_len] = 0;
 // If the message is complete it will be in fragment and I can do something with it.
@@ -308,66 +316,17 @@ void longmessagehandler(byte *fragment, unsigned int fragment_len, byte stream_i
 /// print code version config details and copyright notice
 //
 
-void printConfig(void) {
-
-  // code version
-  Serial << F("> code version = ") << VER_MAJ << VER_MIN << F(" beta ") << VER_BETA << endl;
-  Serial << F("> compiled on ") << __DATE__ << F(" at ") << __TIME__ << F(", compiler ver = ") << __cplusplus << endl;
-#if CANBUS8MHZ
-  Serial << F("> Set for 8Mhz crystal") << endl;
-#endif
-  //Serial << F("> CS Pin ") << CHIPSELECT << endl;
-  //Serial << F("> INT Pin ") << CBUSINTPIN << endl; 
-// copyrights collected so far
-  Serial << F("> © Mark Riddoch (MERG M1118) 2015") << endl;
-  Serial << F("> © Ian Morgan (MERG M2775) 2019") << endl;
-  Serial << F("> © David Radcliffe (MERG M3666) 2019") << endl;
-  Serial << F("> © Duncan Greenwood (MERG M5767) 2019") << endl;
-  Serial << F("> © John Fletcher (MERG M6777) 2019") << endl;
-  Serial << F("> © Ian Blair (MERG M6893) 2024") << endl;
-#if DEBUG
-   byte error_code = (byte)ErrorState::noError;
-   Serial << F("> Error code test noError: ") << error_code << endl;
-   Serial << F("> Error code text is : ");
-   serialPrintErrorln(error_code);
-   Serial << F("> The number of controllers is: ") << NUM_CONTROLLERS << endl;
-  byte controllerIndex;
-  for (controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
-  {
-    Serial << F("> Controller ") << controllerIndex << F(" is ") << controllers[controllerIndex].DCCAddress << endl;
-  }
-  #if OLED_DISPLAY || LCD_DISPLAY
-    #if OLED_DISPLAY
-    Serial << F("> OLED display available") << endl;
-    #else
-    Serial << F("> LCD display available") << endl;
-    #endif
-  #endif
-  #if CBUS_EVENTS
-    Serial << F("> CBUS Events available") << endl;
-  #endif
-  #if LINKSPRITE
-     Serial << F("> LINKSPRITE Output Pins") << endl;
-     Serial << F("> pinI1 = ") << pinI1 << endl; //define I1 interface
-     Serial << F("> pinI2 = ") << pinI2 << endl; //define I1 interface
-     Serial << F("> speedpinA = ") << speedpinA << endl; //define I1 interface
-//int pinI3=12;//define I3 interface 
-//int pinI4=13;//define I4 interface 
-//int speedpinB=10;//enable motor B
-  
-  #endif
-  #endif
-  return;
-}
 
 //
 /// user-defined frame processing function
 /// called from the CBUS library for *every* CAN frame received
 /// it receives a pointer to the received CAN frame
 //  Added from new version of CBUS_empty
+
+
 #if 0
 // Converted to get an opcode array now done when calling SetFrameHandler.
-void framehandler(CANFrame *msg) {
+void cbus_dc_messages::framehandler(CANFrame *msg) {
 
   // as an example, format and display the received frame
 
@@ -409,326 +368,16 @@ void framehandler(CANFrame *msg) {
   return;
 }
 #else
-void framehandler(CANFrame *msg) {
+void cbus_dc_messages::framehandler(CANFrame *msg) {
 
 #if DEBUG
           Serial << F("Message received with Opcode [ 0x") << _HEX(msg->data[0]) << F(" ]")<< endl;
 #endif
      // This will be executed if the code matches.
-  messagehandler(msg);
+  //messagehandler(msg);
   return;
 }
 #endif
-void messagehandler(CANFrame *msg){
-
-  int id;
-  long unsigned int dcc_address;
-  int long_address;
-  byte controllerIndex;
-  int lastInBufPtr = 0;
-  int lastOutBufPtr = 0;
-  //messageRecordType nextMessage;  //Defined in FIFO.h which may not be used.
-/*
-#if OLED_DISPLAY
-  if (MessageBuffer.bufferOverflow == 1)
-  {
-    display.setCursor(64, 24);
-    display.println("Overflow!");
-    MessageBuffer.bufferOverflow = 0;
-  }
-#endif
-*/
-
-    //nextMessage = *msg;  // I think this should work for now.
-    // This simple thing to do is to avoid nextMessage and get things direct from msg
-    //nextMessage = fifoMessageBuffer.getMessage();
-
-    if(msg->len > 0)            // Check to see whether data is received.
-    {
- #if DEBUG
-          Serial.print("CAN msg: ID ");
-          Serial.print(msg->id, HEX);
-          Serial.print(" OpCode:");
-          for(int i = 0; i< msg->len; i++)                // Print each byte of the data
-          {
-            if (i == 1)
-            {
-              Serial.print(" Data:");
-            }
-            Serial.print(" ");
-            if(msg->data[i] < 0x10)                     // If data byte is less than 0x10, add a leading zero
-            {
-              Serial.print("0");
-            }
-            Serial.print(msg->data[i], HEX);
-          }
-          Serial.println();
-#endif
-
-      // Perform the action for the received message
-      switch (msg->data[0])
-      {
-
-        case OPC_ARST:                              // System Reset (Sent by CANCMD on power up)
-#if DEBUG
-          Serial.println(F("System Reset (Sent by CANCMD on power up)"));
-#endif
-
-          //IB TBA sesions_reset();
-          // -------------------------------------------------------------------
-        case OPC_RTOF:
-#if DEBUG
-          Serial.println(F("RTOFF - Request Track Off"));
-#endif
-          stopAll(true);
-          break;
-
-          // -------------------------------------------------------------------
-        case OPC_RTON:
-#if DEBUG
-          Serial.println(F("RTON - Request Track On"));
-#endif
-          break;
-         
-        // -------------------------------------------------------------------
-        case OPC_KLOC:                              // Release loco command
-#if DEBUG
-          Serial.println(F("REL - Release loco"));
-#endif
-          releaseLoco(msg->data[1]);
-          break;
-
-        // -------------------------------------------------------------------
-        case OPC_QLOC:                              // Query loco command
-#if DEBUG
-          Serial.println(F("QLOC - Query loco"));
-#endif
-          queryLoco(msg->data[1]);
-          break;
-
-        // -------------------------------------------------------------------
-        case OPC_DKEEP:                              // CAB Session keep alive command
-#if DEBUG
-          Serial.println(F("DKEEP - keep alive"));
-#endif
-// Temporary fix to call update when keep alive comes in.
-          updateNow = true;
-          updateProcessing();
-          keepaliveSession(msg->data[1]);
-          break;
-          
-       // -------------------------------------------------------------------
-       case OPC_RLOC:                              // Request loco session (0x40)
-#if DEBUG
-          Serial.println(F("RLOC - Request loco session"));
-#endif
-           dcc_address = msg->data[2] + ((msg->data[1] & 0x3f) << 8);
-           long_address = (msg->data[1] & SF_LONG);
- #if DEBUG
-           Serial.print("Req Sess. ");
-           Serial.print(F(" Addr: "));
-           Serial.println(dcc_address);
-          if (long_address == 0)
-           {
-             Serial.print("Short");
-           }
-           else
-           {
-             Serial.print("Long");
-           }
-           Serial.print(" Addr: ");
-           Serial.println(dcc_address);
- #endif
-           if (getDCCIndex (dcc_address, long_address) != SF_UNHANDLED)
-           {
-#if DEBUG
-             Serial << F("Calling locoRequest (") << dcc_address << F(",") << long_address << F(")")<< endl;
-#endif
-             locoRequest(dcc_address, long_address, 0);
-           } else {
-#if DEBUG
-             Serial << F("Calling locoRequest not called for (") << dcc_address << F(",") << long_address << F(")")<< endl;
-#endif
-           }
-           break;
-           
-          // -------------------------------------------------------------------
-        case OPC_QCON:
-#if DEBUG
-          Serial.println(F("Query Consist......."));
-#endif
-          break;
-
-        // -------------------------------------------------------------------
-        case OPC_STMOD:                              // Set Speed Step Range
-
-#if SET_INERTIA_RATE
-#if DEBUG
-          Serial.println(F("STMOD - Set Inertia Rate"));
-#endif
-          setInertiaRate(msg->data[1],msg->data[2]);
-#else
-#if DEBUG
-          Serial.println(F("STMOD - Set speed steps"));
-#endif
-          setSpeedSteps(msg->data[1],msg->data[2]);
-#endif
-          break;
-          
-          // -------------------------------------------------------------------
-        case OPC_PCON:
-#if DEBUG
-          Serial.println(F("PCON - Put loco in Consist"));
-#endif
-          addSessionConsist(msg->data[1], msg->data[2]);
-          break;
-
-          // -------------------------------------------------------------------
-        case OPC_KCON:
-#if DEBUG
-          Serial.println(F("KCON - Remove loco from Consist"));
-#endif
-          removeSessionConsist(msg->data[1]);
-          break;
-
-       // -------------------------------------------------------------------
-        case OPC_DSPD:                              // Session speed and direction
-#if DEBUG
-          Serial.println(F("DSPD - Set speed & direction"));
-#endif
-        {
-          byte session = msg->data[1];
-          byte requestedSpeed = msg->data[2]; // & 0x7f;
-          //byte requestedDirection = msg->data[2] & 0x80;
-          controllerIndex = getSessionIndex(session);
-          if (controllerIndex > SF_INACTIVE)
-          {
-            /*if (requestedSpeed == 1)
-            {
-              // emergency stop
-              controllers[controllerIndex].trainController.emergencyStop();
-            }
-            else */
-            //{
-               setSpeedAndDirection(controllerIndex, requestedSpeed, 0);
-            // controllers[controllerIndex].trainController.setSpeedAndDirection(msg->data[2] & 0x80, requestedSpeed);
-            //}
-            // update the speed display now done in setSpeedAndDirection
-            //displaySpeed(controllerIndex);
-          }
-          // update processing and reset the timeout
-          updateNow = true;
-          updateProcessing();
-          keepaliveSession(session);
-
-          break;
-        }         
-       // -------------------------------------------------------------------
-        case OPC_GLOC:                              // Request Steal or Share loco session (GLOC)
-           dcc_address = msg->data[2] + ((msg->data[1] & 0x3f) << 8);
-           long_address = (msg->data[1] & SF_LONG);
-           locoRequest(dcc_address, long_address, msg->data[3]);
-           break;
-          
-        // -------------------------------------------------------------------
-        case OPC_PLOC:                              // PLOC session Allocate from CANCMD
-           cancmd_present = true; // message came from CANCMD, so must be present
-           dcc_address = msg->data[3] + ((msg->data[2] & 0x3f) << 8);
-           long_address = (msg->data[2] & SF_LONG);
- #if DEBUG
-           Serial.print("PLOC from CANCMD. ");
-           if (long_address == 0)
-           {
-             Serial.print("Short");
-           }
-           else
-           {
-             Serial.print("Long");
-           }
-           Serial.print(" Addr: ");
-           Serial.println(dcc_address);
- #endif
-          //IBPLOC function
-          break;
-          
-        // -------------------------------------------------------------------
-        case OPC_RESTP:                              // Emergency stop all OPC_RESTP
-        // RESTP function
-// sessions_restp()
-          // Tell all the CABs and Throttles
-          emergencyStopAll();
-          break;
- 
-        // -------------------------------------------------------------------
-        case OPC_ACOF:
-        case OPC_ACON:
-#if DEBUG
-           Serial << F("Message handled with Opcode [ 0x") << _HEX(msg->data[0]) << F(" ]")<< endl;
-           Serial << F("Test code to see if a message is getting sent") << endl;
-#endif
-#if ACCESSORY_REQUEST_EVENT
-#if USE_SHORT_EVENTS
-      {
-         // Local variable definition needs to be in { } 
-         unsigned int device_number = 513;
-         Serial << F("Send request short event with device number ") << device_number << endl;
-         sendEvent(OPC_ASRQ,device_number); // Test of short event request.
-      }
-#else
-    //if (moduleSwitch.isPressed() ) { // Send when button is pressed.
-      Serial << F("Send request long event") << endl;
-      sendEvent(OPC_AREQ,requestEvent); // Test of long event request.
-    //}
-#endif
-#endif
-
-          // All this is here for testing purposes
-          // Tell all the CABs and Throttles
-          //emergencyStopAll();
-          //queryLoco(1);
-          //testMessage(1);
-          //locoRequest(1,0,0);
-          //locoRequest(1001,SF_LONG,0);
-        break;
-        // -------------------------------------------------------------------
-        case OPC_AROF:
-        case OPC_ARON:
-        case OPC_ARSOF:
-        case OPC_ARSON:
-        // Process responses to AREQ and ASRQ messages.
-        // I may want to set this up to handle only certain device nos.
-        // It will also be possible to send data or events based on this information.
-        {
-        byte local_opcode = msg->data[0];
-#if ACCESSORY_REQUEST_EVENT
-         unsigned int node_number = (msg->data[1] << 8 ) + msg->data[2];
-         unsigned int event_number = (msg->data[3] << 8 ) + msg->data[4];
-#if USE_SHORT_EVENTS
-        if (local_opcode == OPC_ARSON) {
-          Serial << F(" ON message from device ") << event_number << endl;
-        } else if (local_opcode == OPC_ARSOF) {
-          Serial << F(" OFF message from device ") << event_number << endl;
-        }
-#endif
-        if (local_opcode == OPC_ARON) {
-          Serial << F(" ON message from event ") << node_number << F(" event ") << event_number << endl;
-        } else if (local_opcode == OPC_AROF) {
-          Serial << F(" OFF message from node ") << node_number << F(" event ") << event_number << endl;
-        }
-#endif   
-        }     
-        break;
-        // -------------------------------------------------------------------
-        default:
-          // ignore any other CBus messages
-#if DEBUG
-           Serial << F("Message handled with Opcode [ 0x") << _HEX(msg->data[0]) << F(" ]")<< endl;
-#endif
-          break;
-      }
-    }
-}
-
 // Task to increment timeout counters on active tasks.
 void incrementTimeoutCounters()
 {
@@ -741,15 +390,15 @@ void incrementTimeoutCounters()
 
 }
 //
-void testMessage(byte i)
-{
-  unsigned char buf[4];
-  buf[0] = 0x98;
-  buf[1] = 0;
-  buf[2] = 0;
-  buf[3] = i;
-  sendMessage(4,buf);
-}
+//void testMessage(byte i)
+//{
+//  unsigned char buf[4];
+//  buf[0] = 0x98;
+//  buf[1] = 0;
+//  buf[2] = 0;
+//  buf[3] = i;
+//  sendMessage(4,buf);
+//}
 //
 // Execution routines to be added.
 //

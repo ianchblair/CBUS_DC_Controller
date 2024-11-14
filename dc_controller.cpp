@@ -11,7 +11,12 @@
 //
 // For license and attributions see associated readme file
 //
-
+#include <CBUSESP32.h>              // CAN controller and CBUS class
+#include <CBUSswitch.h>             // pushbutton switch
+#include <CBUSLED.h>                // CBUS LEDs
+#include <CBUSconfig.h>             // module configuration
+#include <CBUSParams.h>             // module parameters
+#include <cbusdefs.h>               // MERG CBUS constants
 #include "dc_controller_defs.h"
 #include "pindefs_dc_controller_esp32.h"
 #include "dc_controller.h"
@@ -214,7 +219,11 @@ void dc_controller::wave(int _phase)
   }  
   else if (_phase == POT_PHASE)
   {
+    #ifdef CBUS
+    ;
+    #else
     _requested_level = analogRead(PIN_POT);
+    #endif
   }
   else if (_phase == BLANK_PHASE)
   {
@@ -236,4 +245,12 @@ void dc_controller::wave(int _phase)
   //if (_phase >= MAX_PHASE)
     //_phase = 0;
 }
+
+#ifdef CBUSDAC
+void setSpeedAndDirection(int speed, bool direction)
+{
+  forwards_not_bacwards = direction'
+  _requested_level = speed;
+}
+#endif
 

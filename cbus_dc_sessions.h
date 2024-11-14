@@ -59,7 +59,7 @@ enum class ErrorState : byte {
 
 #define startAddress 1000     // multiplier for DCC address offset from device address. 
 // Device 0 uses 1000, device 1 uses 2000,...
-byte deviceAddress = 0;       // assume only unit on CAN bus (for now)
+#define deviceAddr 0       // assume only unit on CAN bus (for now)
 
 // NOTE: controllers' index (not the DCC address) is used by the keypad handler. 
 // Making the last digit of the DCC address = the index aids clarity for user.
@@ -79,19 +79,19 @@ struct {
 } controllers[NUM_CONTROLLERS] = {
 #if LINKSPRITE || TOWNSEND
                 // Values taken from the motor shield example code
-                {SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 1, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(pinI1, pinI2, pwmpins[0])}
+                {SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 1, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(pinI1, pinI2, pwmpins[0])}
                ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 2, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(pinI3, pinI4, pwmpins[1])}
 #elseif CBUS
-                  {SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 1, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(22, 23, pwmpins[0])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 2, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(24, 25, pwmpins[1])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 3, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(26, 27, pwmpins[2])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 4, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(28, 29, pwmpins[3])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 5, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(30, 31, pwmpins[4])}
-                   ,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 6, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(32, 33, pwmpins[5])}
-                 //,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 7, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(14, 15, pwmpins[6])}
-                 //,{SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 8, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(16, 17, pwmpins[7])}
+                  {SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 1, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(22, 23, pwmpins[0])}
+                   ,{SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 2, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(24, 25, pwmpins[1])}
+                   ,{SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 3, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(26, 27, pwmpins[2])}
+                   ,{SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 4, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(28, 29, pwmpins[3])}
+                   ,{SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 5, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(30, 31, pwmpins[4])}
+                   ,{SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 6, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(32, 33, pwmpins[5])}
+                 //,{SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 7, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(14, 15, pwmpins[6])}
+                 //,{SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 8, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass(16, 17, pwmpins[7])}
 #else
-                {SF_INACTIVE, (startAddress * (deviceAddress + 1)) + 1, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass()}
+                {SF_INACTIVE, (startAddress * (deviceAddr + 1)) + 1, SF_LONG, 0, false, { 0, 0, false }, trainControllerClass()}
 #endif
                                   };
 
@@ -128,25 +128,38 @@ struct {
 };
 #endif
 
+
+class cbus_dc_sessions
+{
 // Functions for reset and for various sessions related messages
 //
-void sessions_reset(void);
 
-void sessions_ploc(CANFrame *msg, long unsigned int dcc_address, int long_address);
+public:
 
-void sessions_restp(void);
+cbus_dc_sessions();
+
+void setup(void);
+
+void ploc(CANFrame *msg, long unsigned int dcc_address, int long_address);
+
+void restp(void);
 
 //IB session timeout funtion
-void sessions_increment(void);
+void increment(void);
 
 // New routine for update processing which can be called as needed.
-void sessions_updateProcessing(bool updateNow);
+void updateProcessing(bool updateNow);
 
 
 // Functions for individual sessions...
 
 int getSessionIndex (byte session);
 
+int getDCCIndex (unsigned int dcc_address, byte long_address);
+
+void setInertiaRate(byte session, byte rate);
+
+void setSpeedSteps(byte session, byte steps);
 
 /*
  * A loco release command for the given session
@@ -234,5 +247,7 @@ void nBeeps (byte numBeeps);
 
 /// command interpreter for serial console input
 //
+};
+
 #endif
 

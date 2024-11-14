@@ -28,11 +28,19 @@
 // Device 0 uses 1000, device 1 uses 2000,...
 
 bool cancmd_present;
+byte deviceAddress = 0;
+cbus_dc_messages _messenger;
 
-void sessions_reset(void)
+cbus_dc_sessions::cbus_dc_sessions()
+{
+  ;
+}
+
+void cbus_dc_sessions::setup(void)
 {
   // System Reset (Sent by CANCMD on power up)
   cancmd_present = true; // message came from CANCMD, so must be present
+
   for (int controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
   {
     // release all active controllers
@@ -49,7 +57,7 @@ void sessions_reset(void)
 }
 
 // ploc function
-void sessions_ploc(CANFrame *msg, long unsigned int dcc_address, int long_address)
+void cbus_dc_sessions::ploc(CANFrame *msg, long unsigned int dcc_address, int long_address)
 {
   // only interested in the addresses of our analogue outputs
   for (int controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
@@ -72,7 +80,7 @@ void sessions_ploc(CANFrame *msg, long unsigned int dcc_address, int long_addres
 }
 
 // RESTP function
-void sessions_restp(void)
+void cbus_dc_sessions::restp(void)
 {
   for (int controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
   {
@@ -99,7 +107,7 @@ void sessions_restp(void)
 // session timeout function  
 // increment timeout counters every second
 
-void sessions_increment(void)
+void cbus_dc_sessions::increment(void)
 {
   for (byte controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
   {
@@ -111,40 +119,39 @@ void sessions_increment(void)
 }
 
 // New routine for update processing which can be called as needed.
-void sessions_updateProcessing(bool updateNow)
+void cbus_dc_sessions::updateProcessing(bool updateNow)
 {
-   byte controllerIndex;
-   // No CBus message received this time round the loop, so check the sessions for timeout
-    for (controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
+  byte controllerIndex;
+  // No CBus message received this time round the loop, so check the sessions for timeout
+  for (controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
+  {
+    if ((controllers[controllerIndex].session != SF_INACTIVE) && (controllers[controllerIndex].timeout > MAXTIMEOUT))
     {
-      if ((controllers[controllerIndex].session != SF_INACTIVE) && (controllers[controllerIndex].timeout > MAXTIMEOUT))
-      {
 #if DEBUG
-  Serial.print("Session ");
-  Serial.print(controllers[controllerIndex].session);
-  Serial.print(" Address ");
-  Serial.print(controllers[controllerIndex].DCCAddress);
-  Serial.println(" Timed Out.");
+      Serial.print("Session ");
+      Serial.print(controllers[controllerIndex].session);
+      Serial.print(" Address ");
+      Serial.print(controllers[controllerIndex].DCCAddress);
+      Serial.println(" Timed Out.");
 #endif
-        controllers[controllerIndex].trainController.setSpeedAndDirection(0, 0);
-        releaseLoco(controllers[controllerIndex].session);
-        sendSessionError(controllers[controllerIndex].session, ErrorState::sessionCancelled); // Send session cancelled message out to CABs
-      }
+      controllers[controllerIndex].trainController.setSpeedAndDirection(0, 0);
+      releaseLoco(controllers[controllerIndex].session);
+      sendSessionError(controllers[controllerIndex].session, ErrorState::sessionCancelled); // Send session cancelled message out to CABs
+    }
 
-      if (updateNow)
-      {
-        controllers[controllerIndex].trainController.matchToTargets ();
+    if (updateNow)
+    {
+      controllers[controllerIndex].trainController.matchToTargets ();
         // update the speed display.
         // IB displaySpeed(controllerIndex);
-      }
     }
-    updateNow = false;
+  }
 } 
 
 /* *******************************************************************************
  * functions and procedures
  * *******************************************************************************/
-int getSessionIndex (byte session)
+int cbus_dc_sessions::getSessionIndex (byte session)
 {
   int controllerIndex;
   for (controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
@@ -158,7 +165,7 @@ int getSessionIndex (byte session)
   return SF_INACTIVE;
 }
 
-int getDCCIndex (unsigned int dcc_address, byte long_address)
+int cbus_dc_sessions::getDCCIndex (unsigned int dcc_address, byte long_address)
 {
   int controllerIndex;
   for (controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
@@ -175,8 +182,7 @@ int getDCCIndex (unsigned int dcc_address, byte long_address)
 /*
  * A loco release command for the given session
  */
-void
-releaseLoco(byte session)
+void cbus_dc_sessions::releaseLoco(byte session)
 {
   int controllerIndex = getSessionIndex(session);
   if (controllerIndex >= 0)
@@ -198,7 +204,7 @@ releaseLoco(byte session)
 /*
  * A QLOC command for the given session from a CAB
  */
-void queryLoco(byte session)
+void cbus_dc_sessions::queryLoco(byte session)
 {  
   int controllerIndex = getSessionIndex(session);
   // only respond if working standalone
@@ -224,8 +230,7 @@ void queryLoco(byte session)
 /*
  * The command station has allocated a session to a locomotive
  */
-void
-locoSession(byte session, unsigned int address, byte long_address, byte direction_, byte speed_)
+void cbus_dc_sessions::locoSession(byte session, unsigned int address, byte long_address, byte direction_, byte speed_)
 {
   int controllerIndex = getDCCIndex (address, long_address);
    #if DEBUG
@@ -254,7 +259,7 @@ locoSession(byte session, unsigned int address, byte long_address, byte directio
 /*
  * Keep alive received, so reset the timeout counter
  */
-void keepaliveSession(byte session)
+void cbus_dc_sessions::keepaliveSession(byte session)
 {
   int controllerIndex = getSessionIndex(session);
   if (controllerIndex >= 0)
@@ -268,8 +273,7 @@ void keepaliveSession(byte session)
  * This routine is only used if there is no CANCMD on the bus that will
  * allocate sessions.
  */
-void
-locoRequest(unsigned int address, byte long_address, byte flags)
+void cbus_dc_sessions::locoRequest(unsigned int address, byte long_address, byte flags)
 {
   int controllerIndex = getDCCIndex(address, long_address);
 #if DEBUG
@@ -339,7 +343,7 @@ locoRequest(unsigned int address, byte long_address, byte flags)
 * This routine is only used if there is no CANCMD on the bus that will
 * allocate sessions.
 */
-void consistRequest(unsigned int address)
+void cbus_dc_sessions::consistRequest(unsigned int address)
 {
   byte index;
 #if DEBUG
@@ -416,7 +420,7 @@ void consistRequest(unsigned int address)
  * Send a PLOC message in response to a CAB requesting a session for
  * a DCC address
  */
-void sendPLOC(byte session)
+void cbus_dc_sessions::sendPLOC(byte session)
 {
   unsigned char buf[8];
   int controllerIndex = getSessionIndex(session);
@@ -434,7 +438,7 @@ void sendPLOC(byte session)
     buf[5] = 0;  // Zero function bytes
     buf[6] = 0;
     buf[7] = 0;
-    sendMessage(8, buf);
+    _messenger.sendMessage(8, buf);
    #if DEBUG
           Serial.print("CAN msg: ");
           for(int i = 0; i<8; i++)                // Print each byte of the data
@@ -452,7 +456,7 @@ void sendPLOC(byte session)
 }
 
 
-void sendPLOCConsist(byte address)
+void cbus_dc_sessions::sendPLOCConsist(byte address)
 {
   unsigned char buf[8];
   // only send this response if working standalone
@@ -472,7 +476,7 @@ void sendPLOCConsist(byte address)
         buf[5] = 0;  // Zero function bytes
         buf[6] = 0;
         buf[7] = 0;
-        sendMessage(8, buf);
+        _messenger.sendMessage(8, buf);
 #if DEBUG
       Serial.print(F("CAN msg: "));
       for (int i = 0; i < 8; i++)                // Print each byte of the data
@@ -490,7 +494,7 @@ void sendPLOCConsist(byte address)
   }
 }
 
-void addSessionConsist(byte session, byte consist)
+void cbus_dc_sessions::addSessionConsist(byte session, byte consist)
 {
 #if DEBUG
   Serial.print(F("Add to consist: "));
@@ -516,7 +520,7 @@ void addSessionConsist(byte session, byte consist)
   //This works, although the other version does not with that compiler. Oh well.>>>>>>> 9889f22519fb9a2ede20893fbdcefad8d2ff6b54
 }
 
-void removeSessionConsist(byte session)
+void cbus_dc_sessions::removeSessionConsist(byte session)
 {
 #if DEBUG
   Serial.print(F("Remove from consist: "));
@@ -532,7 +536,7 @@ void removeSessionConsist(byte session)
   }
 }
 
-void setSpeedAndDirection(byte controllerIndex, byte requestedSpeed, byte reverse)
+void cbus_dc_sessions::setSpeedAndDirection(byte controllerIndex, byte requestedSpeed, byte reverse)
 {
   if ((requestedSpeed & 0x7F) == 1)
   {
@@ -544,7 +548,7 @@ void setSpeedAndDirection(byte controllerIndex, byte requestedSpeed, byte revers
 #if DEBUG
     Serial << F("Setting speed to ") << (requestedSpeed & 0x7f) << " with reverse " << reverse << endl;
 #endif
-    controllers[controllerIndex].trainController.emergencyStopOff();
+    // IB controllers[controllerIndex].trainController.emergencyStopOff();
     controllers[controllerIndex].trainController.setSpeedAndDirection(((requestedSpeed & 0x80) ^ reverse) >> 7, requestedSpeed & 0x7f);
   }
   // update the speed display.
@@ -556,7 +560,7 @@ void setInertiaRate(byte session, byte rate)
   
 }
 #else
-void setSpeedSteps(byte session, byte steps)
+void cbus_dc_sessions::setSpeedSteps(byte session, byte steps)
 {
   // This is only relevent for DCC, so can be ignored
 }
@@ -565,8 +569,7 @@ void setSpeedSteps(byte session, byte steps)
 /**
  * Send an error packet labelled with the DCC address
  */
-void
-sendError(unsigned int address, byte long_address, ErrorState error_code)
+void cbus_dc_sessions::sendError(unsigned int address, byte long_address, ErrorState error_code)
 {
   unsigned char buf[4];
   byte code = (byte)error_code;
@@ -581,14 +584,13 @@ sendError(unsigned int address, byte long_address, ErrorState error_code)
   buf[1] = ((address >> 8) & 0xff) | long_address;
   buf[2] = address & 0xff;
   buf[3] = code;
-  sendMessage(4, buf);
+  _messenger.sendMessage(4, buf);
 }
 
 /**
  * Send a session error message to the CABs, labelled with the session number
  */
-void
-sendSessionError(byte session, ErrorState error_code)
+void cbus_dc_sessions::sendSessionError(byte session, ErrorState error_code)
 {
   unsigned char buf[4];
   byte code = (byte)error_code;
@@ -602,34 +604,32 @@ sendSessionError(byte session, ErrorState error_code)
   buf[1] = session;
   buf[2] = 0;
   buf[3] = code;
-  sendMessage(4, buf);
+  _messenger.sendMessage(4, buf);
 }
 
 /**
  * Send a reset signal to all connected CABs
  */
-void
-sendReset()
+void cbus_dc_sessions::sendReset()
 {
   unsigned char buf[1];
   int i;
   buf[0] = 0x07; // OPC_ARST
   for (i=0; i< NUM_CONTROLLERS; i++)
   {
-   sendMessage(1, buf);
+   _messenger.sendMessage(1, buf);
   }
   buf[0] = 0x03; // OPC_BON
-  sendMessage(1, buf);
+  _messenger.sendMessage(1, buf);
 }
 
-void
-emergencyStopAll()
+void cbus_dc_sessions::emergencyStopAll()
 {
   unsigned char buf[1];
   // Tell all the cabs
   buf[0] = 0x06; // ESTOP
-  sendMessage(1, buf);
-  beep_counter = 100; // sound buzzer 1 second
+  _messenger.sendMessage(1, buf);
+  // IB beep_counter = 100; // sound buzzer 1 second
 #if CBUS_EVENTS
   sendEvent(OPC_ACON,(byte)EventNo::stopEvent);
   stopEventOn = true;
@@ -641,7 +641,7 @@ emergencyStopAll()
 * Loop over every session and if it is not free set
 * the speed to 0 (stop) or 1 (eStop)
 */
-void stopAll(boolean emergency)
+void cbus_dc_sessions::stopAll(boolean emergency)
 {
   for (byte controllerIndex = 0; controllerIndex < NUM_CONTROLLERS; controllerIndex++)
   {
@@ -653,7 +653,7 @@ void stopAll(boolean emergency)
       else
         controllers[controllerIndex].trainController.setSpeed(0);
       // update the speed display.
-      displaySpeed(controllerIndex);
+      // IB displaySpeed(controllerIndex);
       sendDSPD(controllerIndex);
     }
   }
@@ -666,7 +666,7 @@ void stopAll(boolean emergency)
 /*
 * Send a DSPD message to CABs showing speed/direction
 */
-void sendDSPD(byte controllerIndex)
+void cbus_dc_sessions::sendDSPD(byte controllerIndex)
 {
 
   unsigned char buf[3];
@@ -677,7 +677,7 @@ void sendDSPD(byte controllerIndex)
     buf[0] = 0x47; // OPC_DSPD
     buf[1] = controllers[controllerIndex].session;
     buf[2] = controllers[controllerIndex].trainController.getSpeed() | (controllers[controllerIndex].trainController.getDirection() * 0x80);
-    sendMessage(3, buf);
+    _messenger.sendMessage(3, buf);
   //CAN0.sendMsgBuf(((unsigned long)canId.id) << 5, 3, buf);
 #if DEBUG
   Serial.print(F("CAN msg: "));
@@ -695,6 +695,7 @@ void sendDSPD(byte controllerIndex)
 
 }
 
+#if 0 // IB
 // N beeps
 void nBeeps (byte numBeeps,
        int durationMillis)
@@ -709,9 +710,9 @@ void nBeeps (byte numBeeps,
 }
 
 
+
 // set up fixed text on display
-void
-setupDisplay()
+void setupDisplay()
 {
   // we will display controllers in 2 columns on 3 lines (max 6 controllers)
 #if OLED_DISPLAY || LCD_DISPLAY
@@ -780,3 +781,4 @@ void showSpeeds()
 }
 #endif
 
+#endif // of IB

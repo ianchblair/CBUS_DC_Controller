@@ -4,12 +4,13 @@
 /// 
 /// From CANCMD2, MERG John Fletcher et al.
 
-#ifndef cbus_dc_messages_h
-#define cbus_dc_messages_h
+#ifndef cbus_dc_session_messages_h
+#define cbus_dc_session_messages_h
 
-#include "cbus_dc_sessions.h"
+//#include "cbus_dc_sessions.h"
+//#include "cbus_dc_messages.h"
 
-class cbus_dc_messages
+class cbus_dc_session_messages: public cbus_dc_messages, public cbus_dc_sessions
 {
 /// Send an event routine built to start sending events based on input from a CANCAB
 bool sendEvent(byte opCode,unsigned int eventNo);
@@ -115,9 +116,9 @@ void sendDSPD(byte controllerIndex);
 void processSerialInput(void);
 
 public:
-cbus_dc_messages();
+//cbus_dc_messages();
 
-void messages_setup(CBUSConfig params, CBUSESP32 cbus_params);
+void message_setup(CBUSConfig params);
 
 /// user-defined event processing function
 /// called from the CBUS library when a learned event is received

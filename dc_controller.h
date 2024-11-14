@@ -39,6 +39,9 @@ public:
   dc_controller(void);
   void setup(void);
   void update(void);
+#ifdef CBUSDAC
+  void setSpeedAndDirection(int speed, bool direction);
+#endif
   void wave(int _phase);
 };       
 
