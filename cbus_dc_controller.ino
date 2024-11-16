@@ -41,8 +41,6 @@
 
 */
 
-//#define CBUS 1
-
 #include <arduino.h>
 #include <WiFi.h>
 #include <Streaming.h>
@@ -66,6 +64,7 @@
 
 // CBUS objects
 #define CBUSDAC 1
+#define module_config config        // Required for CUS library linker
 CBUSConfig module_config;           // configuration object
 CBUSESP32 CBUS(&module_config);     // CBUS object
 CBUSLED ledGrn, ledYlw;             // two LED objects
@@ -144,7 +143,7 @@ void setup() {
   CBUS.indicateMode(module_config.FLiM);
 
   // set CAN pins and queue sizes
-  CBUS.setPins(16, 17);
+  CBUS.setPins(PIN_CTX, PIN_CRX);
   CBUS.setNumBuffers(64, 64);
 
   // start CAN bus and CBUS message processing
@@ -157,13 +156,12 @@ void setup() {
   // end of setup
   Serial << "> ready" << endl;
 
-  Messenger = cbus_dc_messages();  // Instantiate and message handler
+  //Messenger = cbus_dc_messages();  // Instantiate and message handler
   //SessionMngr = cbus_dc_sessions();  // Instantiate and initialise session manager
-  //Messenger.setup(module_config);
+  //Messenger.messages_setup(module_config, CBUS);
   //SessionMngr.setup();
-  SessionMessageMngr = cbus_dc_session_messages();
-  SessionMessageMngr.message_setup(module_config);
-  //Messenger.setupSessions(SessionMgr);
+  //SessionMessageMngr = cbus_dc_session_messages();
+  //SessionMessageMngr.message_setup(module_config);
 }
 
 //
